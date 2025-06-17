@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deteksi Gambar - Makanan Cepat Saji</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.7.20/c3.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800 flex items-center justify-center min-h-screen">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-6xl w-full">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-red-600">Makanan Cepat Saji</h1>
+            <p class="text-lg text-gray-600 mt-2">Seret & lepas atau klik area di bawah untuk mendeteksi makanan cepat saji.</p>
+        </header>
+
+        <main class="bg-white rounded-xl shadow-lg p-6 sm:p-8 border border-gray-300">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="flex flex-col items-center justify-center w-full flex-1">
+                    <div class="relative w-full">
+                         <div id="image-preview" class="w-full aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 transition-all duration-300 cursor-pointer hover:border-red-400">
+                            <img src="" class="hidden max-h-full max-w-full rounded-lg object-contain">
+                            <div id="placeholder" class="text-center text-gray-400 p-4">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <svg class="size-12 mb-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M16 5h6" />
+                                        <path d="M19 2v6" />
+                                        <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+                                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                                        <circle cx="9" cy="9" r="2" />
+                                    </svg>      
+                                    <p id="placeholder-text" class="mb-1 text-sm text-gray-500 font-bold">Klik untuk mengunggah atau seret dan lepaskan</p>
+                                    <p class="text-xs text-gray-500">PNG, JPG, atau JPEG (min: 10KB, max: 5MB)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="remove-image" class="hidden absolute top-2 right-2 bg-red-700 bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75 transition-all z-10">
+                            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 6 6 18"/>
+                                <path d="m6 6 12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <input type="file" id="image-upload" class="hidden" accept="image/*">
+                    <div id="error" class="text-red-600 text-sm mt-2 h-5 hidden"></div>
+                </div>
+                
+                <div class="mt-4 md:mt-0 w-full flex-1 flex flex-col">
+                    <h2 class="text-2xl font-semibold text-center mb-4 border-b border-slate-300 pb-2">Hasil Deteksi</h2>
+                    <div id="results" class="flex-1 items-center justify-center flex-col flex">
+                        <div class="space-y-4 flex flex-col justify-center h-auto">
+                            <p id="initial-text" class="text-gray-500 text-center max-w-80">Hasil akan ditampilkan di sini setelah gambar dideteksi.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end mt-6">
+                        <button id="detect" class="w-full bg-gray-800 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-900 transition-all duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md hover:shadow-lg" disabled>
+                            Deteksi
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-8">
+            <p class="text-gray-500 text-sm">&copy; Copyright {{ year }} - Makanan Cepat Saji</p>
+            <div class="flex flex-wrap gap-2 text-sm justify-center text-gray-500">
+                <span>Muhamad Rizal Arfiyan (22.11.5227), </span>
+                <span>Gilang Nur Hidayat (22.11.5196), </span>
+                <span>Damar Galih (22.11.5209)</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://d3js.org/d3.v5.min.js" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.7.20/c3.min.js"></script>
+    <script>
+        const imageUpload = document.getElementById('image-upload');
+        const placeholder = document.getElementById('placeholder');
+        const placeholderText = document.getElementById('placeholder-text');
+        
+        const preview = document.getElementById('image-preview');
+        const imagePreview = preview.querySelector('img');
+        
+        const detect = document.getElementById('detect');
+        const results = document.getElementById('results');
+        const removeImage = document.getElementById('remove-image');
+        const errorMessage = document.getElementById('error');
+        
+        let currentFile = null;
+        const MIN_SIZE = 10 * 1024; // 10KB
+        const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+        function displayError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+        
+        function clearError() {
+            errorMessage.textContent = '';
+            errorMessage.classList.add('hidden')
+        }
+
+        function handleFile(file) {
+            clearError();
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                displayError('File yang dipilih bukan gambar.');
+                return;
+            }
+            if (file.size < MIN_SIZE) {
+                displayError('Ukuran gambar terlalu kecil (min 10KB).');
+                return;
+            }
+            if (file.size > MAX_SIZE) {
+                displayError('Ukuran gambar terlalu besar (maks 5MB).');
+                return;
+            }
+
+            currentFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                removeImage.classList.remove('hidden');
+                detect.disabled = false;
+                results.innerHTML = `<p class="text-gray-500 text-center">Klik tombol "Deteksi" untuk memulai.</p>`;
+            }
+            reader.readAsDataURL(file);
+        }
+        
+        function resetState() {
+            currentFile = null;
+            imageUpload.value = '';
+            imagePreview.src = '';
+            imagePreview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            removeImage.classList.add('hidden');
+            detect.disabled = true;
+            detect.classList.remove('hidden');
+            results.innerHTML = '<p id="initial-text" class="text-gray-500 text-center">Hasil akan ditampilkan di sini setelah gambar dideteksi.</p>';
+            clearError();
+        }
+
+        preview.addEventListener('click', () => {
+            if (currentFile) return;
+            imageUpload.click();
+        });
+        
+        imageUpload.addEventListener('change', (event) => handleFile(event.target.files[0]));
+        
+        removeImage.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetState();
+        });
+
+        preview.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            if (currentFile) return;
+            preview.classList.add('dragover');
+            placeholderText.textContent = 'Lepas di sini untuk mengunggah';
+        });
+
+        preview.addEventListener('dragleave', () => {
+            if (currentFile) return;
+            preview.classList.remove('dragover');
+            placeholderText.textContent = 'Seret gambar atau klik di sini';
+        });
+
+        preview.addEventListener('drop', (event) => {
+            event.preventDefault();
+            if (currentFile) return;
+            preview.classList.remove('dragover');
+            placeholderText.textContent = 'Seret gambar atau klik di sini';
+            const file = event.dataTransfer.files[0];
+            handleFile(file);
+        });
+
+        detect.addEventListener('click', async function() {
+            if (!currentFile) return;
+
+            preview.classList.add('disabled');
+            detect.disabled = true;
+            
+            results.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full">
+                    <svg class="size-8 text-red-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="mt-4 font-medium">Mendeteksi...</span>
+                </div>`;
+            
+            const formData = new FormData();
+            formData.append('image', currentFile);
+
+            try {
+                const response = await fetch('/detection', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                displayResults(data);
+                detect.classList.add('hidden');
+            } catch (error) {
+                console.error('Error:', error);
+                results.innerHTML = '<p class="text-red-500 text-center">Gagal melakukan deteksi. Silakan coba lagi.</p>';
+                detect.disabled = false;
+            } finally {
+                preview.classList.remove('disabled');
+            }
+        });
+
+        function displayResults(resultApi) {
+            results.innerHTML = '';
+            if (!resultApi || resultApi.length === 0) {
+                results.innerHTML = '<p class="text-gray-500 text-center">Tidak ada item yang terdeteksi.</p>';
+                detect.classList.remove('hidden');
+                detect.disabled = false;
+                return;
+            }
+            
+            const topResult = resultApi[0];
+
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'text-center mb-4';
+            summaryDiv.innerHTML = `<p class="text-xl font-semibold">${topResult.name}</p><p class="text-2xl font-bold text-red-600">(${topResult.confidence.toFixed(1)}%)</p>`;
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.id = 'chart';
+
+            results.appendChild(summaryDiv);
+            results.appendChild(chartDiv);
+            
+            const chartColumns = resultApi.map(r => [r.name, r.confidence]);
+
+            c3.generate({
+                bindto: '#chart',
+                data: {
+                    columns: chartColumns,
+                    type : 'donut',
+                },
+                donut: {
+                    title: 'Hasil Deteksi',
+                    label: {
+                        format: function (value, ratio, id) {
+                            return d3.format('.0%')(ratio);
+                        }
+                    }
+                },
+                tooltip: {
+                    format: {
+                        value: function (value, ratio, id) {
+                            return `${value.toFixed(2)}%`;
+                        }
+                    }
+                },
+                legend: {
+                    position: 'right'
+                }
+            });
+        }
+    </script>
+</body>
+</html>

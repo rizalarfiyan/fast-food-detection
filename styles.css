@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@source './templates';
+
+#image-preview.dragover {
+    border-color: #ef4444;
+    background-color: #fee2e2;
+}
+
+#image-preview.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.c3-chart-arc text {
+    fill: white;
+    font-size: 12px;
+}
+
+.c3-chart-arcs-title {
+    font-size: 2em!important;
+    font-weight: bold;
+}
